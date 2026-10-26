@@ -16,7 +16,7 @@ This repository will contain a cTrader Automate cBot and a small Termux-side con
 
 ## Planned layout
 
-- `src/AdeRiskBot.cs` — cTrader Automate cBot; demo guard, risk controls, optional test signal.
+- `src/AdeRiskBot.cs` — cTrader Automate cBot; demo guard, risk controls, experimental EMA 9/21 crossover entry (disabled by default).
 - `bridge/termux_controller.py` — local controller/health-check scaffold; no public listener by default.
 - `config.example.json` — non-secret example configuration.
 - `tests/` — tests for the controller and risk calculations.
@@ -25,9 +25,9 @@ This repository will contain a cTrader Automate cBot and a small Termux-side con
 
 1. Open this repository in GitHub Codespaces to edit and review source.
 2. Compile the cBot in a compatible cTrader desktop/Automate environment; Codespaces alone is not a cTrader execution runtime.
-3. Run backtests and then demo tests only. Verify symbol contract specifications, volume rounding, stop-distance rules, daily reset behavior, reconnect behavior, and failed-close handling before enabling entries.
+3. Run backtests and then demo tests only. The experimental entry is an EMA 9/21 crossover on the attached chart timeframe, not a proven strategy. Verify symbol contract specifications, volume rounding, stop-distance rules, daily reset behavior, reconnect behavior, and failed-close handling before enabling entries.
 4. Keep `Enable Entries` off until the review is complete.
 
 ## Current limitations
 
-This scaffold is not a verified or production-ready trading system. No live trading is supported or authorized. The Termux controller does not place orders directly; execution remains inside the cTrader cBot.
+This is not a verified or production-ready trading system. The EMA crossover is experimental and has no verified profitability. No live trading is supported or authorized. The Termux controller does not place orders directly; execution remains inside the cTrader cBot.
