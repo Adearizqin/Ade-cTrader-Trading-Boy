@@ -31,6 +31,7 @@ namespace cAlgo.Robots
         private const string BotLabel = "AdeRiskBot-Demo";
         private double _dayStartEquity;
         private string _baselineKey;
+        private string _cutoffKey;
         private bool _cutoffTriggered;
 
         protected override void OnStart()
@@ -70,7 +71,10 @@ namespace cAlgo.Robots
                 LocalStorage.Flush(LocalStorageScope.Device);
             }
 
-            _cutoffTriggered = false;
+            _cutoffKey = _baselineKey + ".CutoffTriggered";
+            _cutoffTriggered = string.Equals(
+                LocalStorage.GetString(_cutoffKey, LocalStorageScope.Device), "true",
+                StringComparison.OrdinalIgnoreCase);
             CheckDailyCutoff();
             Timer.Start(1);
             Print("AdeRiskBot started in demo-only mode. Entries are {0}. Day-start equity: {1}",
@@ -129,13 +133,18 @@ namespace cAlgo.Robots
                         LocalStorageScope.Device);
                     LocalStorage.Flush(LocalStorageScope.Device);
                 }
-                _cutoffTriggered = false;
+                _cutoffKey = _baselineKey + ".CutoffTriggered";
+                _cutoffTriggered = string.Equals(
+                    LocalStorage.GetString(_cutoffKey, LocalStorageScope.Device), "true",
+                    StringComparison.OrdinalIgnoreCase);
                 Print("New broker-server day. Day-start equity baseline: {0}", _dayStartEquity);
             }
 
             if (!_cutoffTriggered && IsDailyCutoffReached())
             {
                 _cutoffTriggered = true;
+                LocalStorage.SetString(_cutoffKey, "true", LocalStorageScope.Device);
+                LocalStorage.Flush(LocalStorageScope.Device);
                 Print("DAILY CUTOFF TRIGGERED: equity loss reached {0}% of day-start equity. Entries blocked.",
                     DailyLossLimitPercent);
             }
