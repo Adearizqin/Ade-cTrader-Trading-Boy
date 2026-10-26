@@ -70,7 +70,8 @@ namespace cAlgo.Robots
                 LocalStorage.Flush(LocalStorageScope.Device);
             }
 
-            _cutoffTriggered = IsDailyCutoffReached();
+            _cutoffTriggered = false;
+            CheckDailyCutoff();
             Timer.Start(1);
             Print("AdeRiskBot started in demo-only mode. Entries are {0}. Day-start equity: {1}",
                 EnableEntries ? "configured ON but no signal engine is enabled" : "OFF",
