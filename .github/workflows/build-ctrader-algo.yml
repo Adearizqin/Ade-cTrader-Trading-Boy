@@ -35,6 +35,9 @@ jobs:
             ghcr.io/spotware/ctrader-console:latest \
             create cbot AdeRiskBot csharp
 
+          # The container runs as root; restore runner ownership before replacing source.
+          sudo chown -R "$(id -u):$(id -g)" .ctrader-build
+
           project_file="$(find .ctrader-build -type f -name 'AdeRiskBot.csproj' -print -quit)"
           if [ -z "$project_file" ]; then
             echo "::error::Spotware CLI did not create the expected .csproj file."
