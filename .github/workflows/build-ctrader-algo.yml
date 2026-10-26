@@ -1,0 +1,97 @@
+name: Build cTrader cBot (.algo)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["Blogger"]
+    paths:
+      - "src/AdeRiskBot.cs"
+      - ".github/workflows/build-ctrader-algo.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-ctrader-algo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Pull official Spotware cTrader CLI image
+        run: docker pull ghcr.io/spotware/ctrader-console:latest
+
+      - name: Create a cTrader cBot project
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/.ctrader-build" "$GITHUB_WORKSPACE/dist"
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/workspace" \
+            --workdir /workspace/.ctrader-build \
+            ghcr.io/spotware/ctrader-console:latest \
+            create cbot AdeRiskBot csharp
+
+          project_file="$(find .ctrader-build -type f -name '*.csproj' -print -quit)"
+          if [ -z "$project_file" ]; then
+            echo "::error::Spotware CLI did not create a .csproj file."
+            find .ctrader-build -maxdepth 5 -type f -print || true
+            exit 1
+          fi
+
+          project_dir="$(dirname "$project_file")"
+          source_file="$(grep -rl --include='*.cs' 'class AdeRiskBot' "$project_dir" | head -n 1 || true)"
+          if [ -z "$source_file" ]; then
+            source_file="$(find "$project_dir" -type f -name '*.cs' ! -path '*/obj/*' ! -path '*/bin/*' -print -quit)"
+          fi
+          if [ -z "$source_file" ]; then
+            echo "::error::Could not locate the generated cBot C# source file."
+            find "$project_dir" -maxdepth 5 -type f -print || true
+            exit 1
+          fi
+
+          cp src/AdeRiskBot.cs "$source_file"
+          echo "Project file: $project_file"
+          echo "Source replaced: $source_file"
+
+      - name: Build .algo with official Spotware CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          project_file="$(find .ctrader-build -type f -name '*.csproj' -print -quit)"
+          test -n "$project_file"
+          project_dir="$(dirname "$project_file")"
+
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/workspace" \
+            --workdir /workspace \
+            ghcr.io/spotware/ctrader-console:latest \
+            build "/workspace/$project_dir"
+
+          mapfile -t algo_files < <(find .ctrader-build -type f -name '*.algo' -print)
+          if [ "${#algo_files[@]}" -eq 0 ]; then
+            echo "::error::Build command finished without producing an .algo file."
+            find .ctrader-build -maxdepth 7 -type f -print || true
+            exit 1
+          fi
+
+          cp "${algo_files[0]}" dist/AdeRiskBot.algo
+          test -s dist/AdeRiskBot.algo
+          ls -lh dist/AdeRiskBot.algo
+
+      - name: Verify compiled bot metadata
+        run: |
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/workspace" \
+            --workdir /workspace \
+            ghcr.io/spotware/ctrader-console:latest \
+            metadata /workspace/dist/AdeRiskBot.algo
+
+      - name: Upload cBot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdeRiskBot-algo-demo-candidate
+          path: dist/AdeRiskBot.algo
+          if-no-files-found: error
+          retention-days: 14
