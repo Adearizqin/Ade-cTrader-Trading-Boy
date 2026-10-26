@@ -287,14 +287,20 @@ namespace cAlgo.Robots
         }
 
         // Utility for a future reviewed signal engine. Not used to submit orders in this scaffold.
-        private double CalculateVolumeForRisk(double stopLossPips)
+        private long CalculateVolumeForRisk(double stopLossPips)
         {
             if (stopLossPips <= 0 || RiskPercent <= 0 || RiskPercent > 1.0)
-                return 0;
+                return 0L;
 
             var riskAmount = Account.Equity * RiskPercent / 100.0;
-            var volume = Symbol.VolumeForFixedRisk(riskAmount, stopLossPips, RoundingMode.Down);
-            return Symbol.NormalizeVolumeInUnits(volume, RoundingMode.Down);
+            var rawVolume = Symbol.VolumeForFixedRisk(riskAmount, stopLossPips, RoundingMode.Down);
+            var normalizedVolume = Symbol.NormalizeVolumeInUnits(rawVolume, RoundingMode.Down);
+
+            // Respect the broker's maximum volume; this can only reduce the risk-sized position.
+            if (normalizedVolume > Symbol.VolumeInUnitsMax)
+                normalizedVolume = Symbol.VolumeInUnitsMax;
+
+            return (long)normalizedVolume;
         }
     }
 }
