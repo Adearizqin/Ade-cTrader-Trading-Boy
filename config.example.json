@@ -1,0 +1,11 @@
+{
+  "mode": "demo",
+  "symbol": "XAUUSD",
+  "risk_per_trade_percent": 1.0,
+  "daily_loss_limit_percent": 3.0,
+  "trailing_stop_enabled": true,
+  "entries_enabled": false,
+  "controller_bind_host": "127.0.0.1",
+  "controller_port": 8765,
+  "allow_remote_access": false
+}
