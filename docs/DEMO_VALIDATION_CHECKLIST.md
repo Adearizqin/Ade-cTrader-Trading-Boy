@@ -1,6 +1,6 @@
 # Demo Validation Checklist
 
-**Do not enable live trading.** The current cBot is a safety scaffold and contains no entry signal engine.
+**Live trading is prohibited.** The cBot now contains an experimental EMA-crossover demo entry engine, but it has not been compiled or validated in cTrader. Entry remains disabled by default.
 
 ## 1. Build in cTrader Automate
 
@@ -23,7 +23,22 @@ Recommended initial parameters:
 - Daily Loss Limit: `3.0%`
 - Trailing Stop Enabled: `true`
 
-Confirm that the startup log identifies demo-only mode and that no entry order is submitted.
+Confirm that the startup log identifies demo-only mode and that no entry order is submitted while Enable Entries is false.
+
+## 2A. Validate the experimental entry engine (demo only)
+
+Do this only after the cBot compiles without errors and the cutoff/trailing checks above have passed.
+
+- Strategy: EMA 9/21 crossover on closed bars; buy when fast EMA crosses above slow EMA and sell when it crosses below.
+- Entry timeframe: the chart timeframe where the cBot is attached. No multi-timeframe confirmation is implemented.
+- Symbol: keep Require Gold Symbol enabled; the current symbol name must contain `XAU` or `GOLD`.
+- Exposure: at most one position owned by this bot for the current symbol.
+- Protection: order submission includes the configured stop-loss and take-profit in pips; volume is calculated from the 1% equity risk target and configured stop distance.
+- Start with a cTrader backtest on the broker's exact gold symbol and account type. Include spread, commission, and realistic slippage where the platform supports them.
+- Review trade count, drawdown, expectancy, average win/loss, and behavior in trending and ranging periods. A crossover signal is not evidence of profitability.
+- Only after reviewing the backtest, run a short demo forward test with Enable Entries set to true. Keep the daily cutoff at 3%, verify order logs and attached SL/TP, and stop the test if any safety behavior differs from expectation.
+- The default stop-loss/take-profit values are placeholders, not broker-validated XAUUSD settings. Confirm pip size, minimum stop distance, volume minimum/step, and contract specification first.
+- If any order is rejected, inspect the cTrader error log. Do not increase risk or remove protective stops to force an order through.
 
 ## 3. Verify the daily cutoff
 
