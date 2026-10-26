@@ -32,6 +32,12 @@ class CBotSafetyContractTests(unittest.TestCase):
         self.assertIn('[Parameter("Require Gold Symbol", DefaultValue = true)]', SOURCE)
         self.assertIn('name.Contains("XAU") || name.Contains("GOLD")', SOURCE)
 
+    def test_risk_sized_volume_uses_integer_units_and_broker_limits(self):
+        self.assertIn("private long CalculateVolumeForRisk(double stopLossPips)", SOURCE)
+        self.assertIn("Symbol.VolumeForFixedRisk(riskAmount, stopLossPips, RoundingMode.Down)", SOURCE)
+        self.assertIn("Symbol.VolumeInUnitsMax", SOURCE)
+        self.assertIn("return (long)normalizedVolume;", SOURCE)
+
     def test_daily_cutoff_close_is_retried(self):
         self.assertIn("Retry closing bot-owned positions on each timer/tick", SOURCE)
         self.assertIn("Will retry while cutoff remains active", SOURCE)
