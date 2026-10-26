@@ -16,10 +16,21 @@ class CBotSafetyContractTests(unittest.TestCase):
         self.assertIn('MaxValue = 1.0', SOURCE)
         self.assertIn('MaxValue = 3.0', SOURCE)
 
-    def test_scaffold_does_not_submit_entry_orders(self):
-        self.assertNotIn("ExecuteMarketOrder(", SOURCE)
-        self.assertNotIn("PlaceLimitOrder(", SOURCE)
-        self.assertNotIn("PlaceStopOrder(", SOURCE)
+    def test_order_submission_is_gated_by_enable_flag_and_cutoff(self):
+        self.assertIn("protected override void OnBar()", SOURCE)
+        self.assertIn("if (_cutoffTriggered || !EnableEntries)", SOURCE)
+        self.assertIn("ExecuteMarketOrder(signal.Value", SOURCE)
+
+    def test_strategy_uses_closed_bar_ema_cross_and_one_position_limit(self):
+        self.assertIn("Indicators.ExponentialMovingAverage(Bars.ClosePrices, FastEmaPeriod)", SOURCE)
+        self.assertIn("Indicators.ExponentialMovingAverage(Bars.ClosePrices, SlowEmaPeriod)", SOURCE)
+        self.assertIn("Bars.Count - 3", SOURCE)
+        self.assertIn("Bars.Count - 2", SOURCE)
+        self.assertIn("Positions.FindAll(BotLabel, SymbolName).Length > 0", SOURCE)
+
+    def test_gold_symbol_filter_is_enabled_by_default(self):
+        self.assertIn('[Parameter("Require Gold Symbol", DefaultValue = true)]', SOURCE)
+        self.assertIn('name.Contains("XAU") || name.Contains("GOLD")', SOURCE)
 
     def test_daily_cutoff_close_is_retried(self):
         self.assertIn("Retry closing bot-owned positions on each timer/tick", SOURCE)
