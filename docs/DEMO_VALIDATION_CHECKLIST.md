@@ -2,15 +2,16 @@
 
 **Live trading is prohibited.** The cBot now contains an experimental EMA-crossover demo entry engine, but it has not been compiled or validated in cTrader. Entry remains disabled by default.
 
-## 1. Build in cTrader Automate
+## 1. Build and install the .algo file
 
-- [ ] Open the cTrader application that supports Automate/cBots.
-- [ ] Create or open a cBot project and import `src/AdeRiskBot.cs`.
-- [ ] Compile in the target cTrader Automate version.
-- [ ] Save the full compiler output with the test record.
-- [ ] Do not continue to account testing if there are compiler errors or unresolved API warnings.
+- [x] GitHub Actions built `AdeRiskBot.algo` using the official Spotware cTrader CLI container on 26 October 2026.
+- [x] CLI build result reported `success: true` and `errors: []`.
+- [x] CLI metadata verified the output is a cBot and confirmed `EnableEntries` defaults to `false`.
+- [ ] Download the `AdeRiskBot-algo-demo-candidate` artifact ZIP from the [successful build run](https://github.com/Adearizqin/Ade-cTrader-Trading-Boy/actions/runs/40339243638) and extract `AdeRiskBot.algo`.
+- [ ] On Android, tap `AdeRiskBot.algo` and open it with cTrader, or use the Upload option in the cTrader Algo/cBots interface. See the [official cTrader install guide](https://help.ctrader.com/cbots/how-tos/install-a-cbot/).
+- [ ] Confirm the bot appears in cTrader and inspect the instance logs before starting it on demo.
 
-GitHub Actions checks the Python controller and static safety contracts. It does **not** compile C# against the cTrader Automate API.
+The build succeeded but emitted `CS1701` warnings about `System.Runtime` assembly versions 6.0 and 10.0. A successful build is not runtime validation. Do not enable entries until cTrader has started the bot successfully and demo safety checks have been completed.
 
 ## 2. Start only on a demo account
 
