@@ -1,6 +1,7 @@
 using System;
 using cAlgo.API;
 using cAlgo.API.Internals;
+using cAlgo.API.Indicators;
 
 namespace cAlgo.Robots
 {
@@ -28,7 +29,18 @@ namespace cAlgo.Robots
         [Parameter("Trailing Distance (pips)", DefaultValue = 150, MinValue = 1)]
         public double TrailingDistancePips { get; set; }
 
+        [Parameter("Fast EMA Period", DefaultValue = 9, MinValue = 2, MaxValue = 100)]
+        public int FastEmaPeriod { get; set; }
+
+        [Parameter("Slow EMA Period", DefaultValue = 21, MinValue = 3, MaxValue = 300)]
+        public int SlowEmaPeriod { get; set; }
+
+        [Parameter("Require Gold Symbol", DefaultValue = true)]
+        public bool RequireGoldSymbol { get; set; }
+
         private const string BotLabel = "AdeRiskBot-Demo";
+        private ExponentialMovingAverage _fastEma;
+        private ExponentialMovingAverage _slowEma;
         private double _dayStartEquity;
         private string _baselineKey;
         private string _cutoffKey;
@@ -71,16 +83,35 @@ namespace cAlgo.Robots
                 LocalStorage.Flush(LocalStorageScope.Device);
             }
 
+            if (FastEmaPeriod >= SlowEmaPeriod)
+            {
+                Print("SAFETY STOP: Fast EMA Period must be lower than Slow EMA Period.");
+                Stop();
+                return;
+            }
+
+            _fastEma = Indicators.ExponentialMovingAverage(Bars.ClosePrices, FastEmaPeriod);
+            _slowEma = Indicators.ExponentialMovingAverage(Bars.ClosePrices, SlowEmaPeriod);
+
             _cutoffKey = _baselineKey + ".CutoffTriggered";
             _cutoffTriggered = string.Equals(
                 LocalStorage.GetString(_cutoffKey, LocalStorageScope.Device), "true",
                 StringComparison.OrdinalIgnoreCase);
             CheckDailyCutoff();
             Timer.Start(1);
-            Print("AdeRiskBot started in demo-only mode. Entries are {0}. Day-start equity: {1}",
-                EnableEntries ? "configured ON but no signal engine is enabled" : "OFF",
+            Print("AdeRiskBot started in demo-only mode. EMA crossover entries are {0}. Day-start equity: {1}",
+                EnableEntries ? "ENABLED BY PARAMETER" : "OFF",
                 _dayStartEquity);
-            Print("This scaffold does not submit entry orders. Validate compilation and cutoff behavior in cTrader demo first.");
+            Print("Experimental EMA crossover only. Keep entries off until this cBot compiles and passes demo validation.");
+        }
+
+        protected override void OnBar()
+        {
+            CheckDailyCutoff();
+            if (_cutoffTriggered || !EnableEntries)
+                return;
+
+            TryOpenEmaCrossoverTrade();
         }
 
         protected override void OnTimer()
@@ -95,6 +126,66 @@ namespace cAlgo.Robots
             CheckDailyCutoff();
             if (!_cutoffTriggered && TrailingStopEnabled)
                 ManageTrailingStops();
+        }
+
+        private bool IsGoldSymbol()
+        {
+            var name = SymbolName.ToUpperInvariant();
+            return name.Contains("XAU") || name.Contains("GOLD");
+        }
+
+        private void TryOpenEmaCrossoverTrade()
+        {
+            // Hard gates: demo-only guard is enforced in OnStart; entries must be enabled,
+            // daily cutoff must be inactive, and this is restricted to a gold symbol by default.
+            if (!EnableEntries || _cutoffTriggered)
+                return;
+
+            if (RequireGoldSymbol && !IsGoldSymbol())
+            {
+                Print("ENTRY BLOCKED: current symbol is not identified as gold: {0}", SymbolName);
+                return;
+            }
+
+            if (FastEmaPeriod >= SlowEmaPeriod || Bars.Count < SlowEmaPeriod + 3)
+                return;
+
+            // One bot-owned position at a time for the current symbol.
+            if (Positions.FindAll(BotLabel, SymbolName).Length > 0)
+                return;
+
+            var previousClosed = Bars.Count - 3;
+            var lastClosed = Bars.Count - 2;
+            var fastPrevious = _fastEma.Result[previousClosed];
+            var slowPrevious = _slowEma.Result[previousClosed];
+            var fastLast = _fastEma.Result[lastClosed];
+            var slowLast = _slowEma.Result[lastClosed];
+
+            TradeType? signal = null;
+            if (fastPrevious <= slowPrevious && fastLast > slowLast)
+                signal = TradeType.Buy;
+            else if (fastPrevious >= slowPrevious && fastLast < slowLast)
+                signal = TradeType.Sell;
+
+            if (signal == null)
+                return;
+
+            var volume = CalculateVolumeForRisk(StopLossPips);
+            if (volume < Symbol.VolumeInUnitsMin)
+            {
+                Print("ENTRY BLOCKED: calculated volume is below broker minimum. Check symbol contract and stop-loss settings.");
+                return;
+            }
+
+            // Stop-loss and take-profit are attached to the market order in pips.
+            var result = ExecuteMarketOrder(signal.Value, SymbolName, volume, BotLabel,
+                StopLossPips, TakeProfitPips);
+
+            if (result.IsSuccessful)
+                Print("DEMO ENTRY CONFIRMED: {0} {1}, volume {2}, SL {3} pips, TP {4} pips.",
+                    signal.Value, SymbolName, volume, StopLossPips, TakeProfitPips);
+            else
+                Print("ENTRY FAILED: {0} {1}: {2}", signal.Value, SymbolName, result.Error);
         }
 
         private bool IsDailyCutoffReached()
