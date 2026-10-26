@@ -133,21 +133,25 @@ namespace cAlgo.Robots
                 Print("New broker-server day. Day-start equity baseline: {0}", _dayStartEquity);
             }
 
-            if (_cutoffTriggered || !IsDailyCutoffReached())
+            if (!_cutoffTriggered && IsDailyCutoffReached())
+            {
+                _cutoffTriggered = true;
+                Print("DAILY CUTOFF TRIGGERED: equity loss reached {0}% of day-start equity. Entries blocked.",
+                    DailyLossLimitPercent);
+            }
+
+            if (!_cutoffTriggered)
                 return;
 
-            _cutoffTriggered = true;
-            Print("DAILY CUTOFF TRIGGERED: equity loss reached {0}% of day-start equity. Entries blocked.",
-                DailyLossLimitPercent);
-
-            // Close only positions opened by this bot, not unrelated manual positions.
+            // Retry closing bot-owned positions on each timer/tick while cutoff remains active.
+            // A transient broker/network failure must not permanently suppress further attempts.
             foreach (var position in Positions.FindAll(BotLabel, SymbolName))
             {
                 var result = ClosePosition(position);
                 if (result.IsSuccessful)
                     Print("Cutoff close confirmed for position {0}.", position.Id);
                 else
-                    Print("WARNING: cutoff close failed for position {0}: {1}. Check cTrader and retry manually if needed.",
+                    Print("WARNING: cutoff close failed for position {0}: {1}. Will retry while cutoff remains active.",
                         position.Id, result.Error);
             }
         }
