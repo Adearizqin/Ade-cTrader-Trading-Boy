@@ -25,6 +25,11 @@ class CBotSafetyContractTests(unittest.TestCase):
         self.assertIn("Retry closing bot-owned positions on each timer/tick", SOURCE)
         self.assertIn("Will retry while cutoff remains active", SOURCE)
 
+    def test_daily_cutoff_latch_is_persisted_across_restarts(self):
+        self.assertIn('LocalStorage.SetString(_cutoffKey, "true", LocalStorageScope.Device);', SOURCE)
+        self.assertIn('LocalStorage.GetString(_cutoffKey, LocalStorageScope.Device)', SOURCE)
+        self.assertIn('_cutoffKey = _baselineKey + ".CutoffTriggered";', SOURCE)
+
 
 if __name__ == "__main__":
     unittest.main()
